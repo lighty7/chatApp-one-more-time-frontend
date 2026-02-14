@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { conversationsAPI, usersAPI } from '../services/api';
+import { conversationsAPI } from '../services/api';
 import socketService from '../services/socket';
 
 export const useChatStore = create((set, get) => ({
@@ -10,6 +10,7 @@ export const useChatStore = create((set, get) => ({
   loading: false,
   hasMore: true,
   page: 1,
+  user: null,
 
   fetchConversations: async () => {
     set({ loading: true });
@@ -29,8 +30,23 @@ export const useChatStore = create((set, get) => ({
     }
     set({ activeConversation: conversation, messages: {}, page: 1, hasMore: true });
     if (conversation) {
-      socketService.joinConversation(conversation._id || conversation.id);
-      get().fetchMessages(conversation._id || conversation.id);
+      const convId = conversation._id || conversation.id;
+      socketService.joinConversation(convId).then((response) => {
+        if (response?.messages) {
+          set({
+            messages: {
+              ...get().messages,
+              [convId]: response.messages
+            }
+          });
+        }
+        if (response?.conversation) {
+          set({ activeConversation: response.conversation });
+        }
+      }).catch(err => {
+        console.error('Failed to join conversation:', err);
+      });
+      get().fetchMessages(convId);
     }
   },
 
@@ -63,19 +79,43 @@ export const useChatStore = create((set, get) => ({
     if (!activeConversation) return;
     
     try {
+      const convId = activeConversation._id || activeConversation.id;
+      const tempId = `temp-${Date.now()}`;
+      
+      const optimisticMessage = {
+        _id: tempId,
+        conversationId: convId,
+        content,
+        type,
+        sender: { _id: get().user?._id, displayName: get().user?.displayName },
+        createdAt: new Date().toISOString(),
+        readBy: [{ user: get().user?._id, readAt: new Date().toISOString() }],
+        status: 'sending'
+      };
+      
+      set({
+        messages: {
+          ...get().messages,
+          [convId]: [...(get().messages[convId] || []), optimisticMessage],
+        },
+      });
+      
       const message = await socketService.sendMessage(
-        activeConversation._id || activeConversation.id,
+        convId,
         content,
         type,
         attachmentId
       );
-      const convId = activeConversation._id || activeConversation.id;
+      
       set({
         messages: {
           ...get().messages,
-          [convId]: [...(get().messages[convId] || []), message],
+          [convId]: (get().messages[convId] || []).map(m => 
+            m._id === tempId ? message : m
+          ),
         },
       });
+      
       return message;
     } catch (error) {
       console.error('Failed to send message:', error);
@@ -85,19 +125,52 @@ export const useChatStore = create((set, get) => ({
 
   addMessage: (message) => {
     const convId = message.conversationId;
-    if (!convId) return;
+    if (!convId) {
+      console.log('No conversationId in message:', message);
+      return;
+    }
+    
     const currentMessages = get().messages[convId] || [];
-    if (!currentMessages.find(m => m._id === message._id)) {
+    const currentUserId = get().user?._id;
+    
+    const isFromCurrentUser = message.sender?._id === currentUserId || message.sender?.id === currentUserId;
+    const existingByTemp = !isFromCurrentUser ? -1 : currentMessages.findIndex(m => 
+      m._id?.startsWith?.('temp-') && 
+      m.content === message.content
+    );
+    
+    if (existingByTemp >= 0) {
+      console.log('Replacing temp message with real message');
+      const updated = [...currentMessages];
+      updated[existingByTemp] = message;
       set({
         messages: {
           ...get().messages,
-          [convId]: [...currentMessages, message],
+          [convId]: updated,
         },
       });
+      return;
     }
+    
+    const existingIndex = currentMessages.findIndex(m => m._id === message._id);
+    if (existingIndex >= 0) {
+      console.log('Message already exists:', message._id);
+      return;
+    }
+    
+    console.log('Adding new message to conversation:', convId);
+    set({
+      messages: {
+        ...get().messages,
+        [convId]: [...currentMessages, message],
+      },
+    });
   },
 
   setTyping: (conversationId, userId, isTyping) => {
+    const currentUserId = get().user?._id;
+    if (userId === currentUserId) return;
+    
     set({
       typingUsers: {
         ...get().typingUsers,
@@ -106,6 +179,16 @@ export const useChatStore = create((set, get) => ({
           : (get().typingUsers[conversationId] || []).filter(id => id !== userId),
       },
     });
+  },
+
+  typing: (conversationId) => {
+    if (!conversationId) return;
+    socketService.typing(conversationId);
+  },
+
+  stopTyping: (conversationId) => {
+    if (!conversationId) return;
+    socketService.stopTyping(conversationId);
   },
 
   createDirectConversation: async (userId) => {
@@ -138,9 +221,70 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  setUser: (user) => {
+    set({ user });
+  },
+
   setupSocketListeners: () => {
+    console.log('Setting up socket listeners...');
+    
     socketService.on('new-message', (message) => {
+      console.log('Received new-message in store:', message);
       get().addMessage(message);
+    });
+
+    socketService.on('message', (message) => {
+      console.log('Received message in store:', message);
+      get().addMessage(message);
+    });
+
+    socketService.on('conversation:event', (data) => {
+      console.log('Received conversation:event:', data);
+      if (data.type === 'new_message') {
+        get().addMessage(data.data);
+      }
+    });
+
+    socketService.on('message-delivered', (data) => {
+      console.log('Received message-delivered:', data);
+      const { conversationId, userId } = data;
+      const currentMessages = get().messages[conversationId] || [];
+      const updatedMessages = currentMessages.map(msg => {
+        if (!msg.readBy?.find(r => r.user === userId)) {
+          return {
+            ...msg,
+            readBy: [...(msg.readBy || []), { user: userId, readAt: new Date().toISOString() }]
+          };
+        }
+        return msg;
+      });
+      set({
+        messages: {
+          ...get().messages,
+          [conversationId]: updatedMessages
+        }
+      });
+    });
+
+    socketService.on('message-read', (data) => {
+      console.log('Received message-read:', data);
+      const { conversationId, userId } = data;
+      const currentMessages = get().messages[conversationId] || [];
+      const updatedMessages = currentMessages.map(msg => {
+        if (!msg.readBy?.find(r => r.user === userId)) {
+          return {
+            ...msg,
+            readBy: [...(msg.readBy || []), { user: userId, readAt: new Date().toISOString() }]
+          };
+        }
+        return msg;
+      });
+      set({
+        messages: {
+          ...get().messages,
+          [conversationId]: updatedMessages
+        }
+      });
     });
 
     socketService.on('user-typing', ({ userId, conversationId }) => {

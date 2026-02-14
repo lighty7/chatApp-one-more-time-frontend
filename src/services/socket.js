@@ -4,39 +4,94 @@ class SocketService {
   constructor() {
     this.socket = null;
     this.listeners = new Map();
+    this.connectionPromise = null;
+    this.heartbeatInterval = null;
   }
 
   connect(token) {
-    if (this.socket?.connected) return;
+    if (this.socket?.connected) {
+      console.log('Socket already connected:', this.socket.id);
+      return;
+    }
 
+    if (this.socket) {
+      this.socket.disconnect();
+    }
+
+    const isDev = import.meta.env.DEV;
+    const transports = isDev ? ['polling', 'websocket'] : ['websocket', 'polling'];
+    
     this.socket = io('/', {
       auth: { token },
-      transports: ['websocket', 'polling'],
+      transports,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
     });
 
     this.socket.on('connect', () => {
-      console.log('Socket connected');
+      console.log('Socket connected:', this.socket.id);
+      this.startHeartbeat();
     });
 
     this.socket.on('disconnect', (reason) => {
       console.log('Socket disconnected:', reason);
+      this.stopHeartbeat();
     });
 
     this.socket.on('error', (error) => {
       console.error('Socket error:', error);
     });
+
+    this.socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
+
+    this.socket.on('heartbeat-ping', () => {
+      if (this.socket?.connected) {
+        this.socket.emit('heartbeat-pong');
+      }
+    });
+  }
+
+  startHeartbeat() {
+    this.stopHeartbeat();
+    this.heartbeatInterval = setInterval(() => {
+      if (this.socket?.connected) {
+        this.socket.emit('heartbeat-pong');
+      }
+    }, 10000);
+  }
+
+  stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+    }
   }
 
   disconnect() {
+    this.stopHeartbeat();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
     }
   }
 
+  isConnected() {
+    return this.socket?.connected === true;
+  }
+
   on(event, callback) {
-    if (!this.socket) return;
-    this.socket.on(event, callback);
+    if (!this.socket) {
+      console.warn('Socket not initialized, cannot add listener for:', event);
+    }
+    this.socket?.on(event, callback);
+    
+    if (!this.listeners.has(event)) {
+      this.listeners.set(event, []);
+    }
+    this.listeners.get(event).push(callback);
   }
 
   off(event, callback) {
@@ -45,7 +100,16 @@ class SocketService {
   }
 
   emit(event, data, callback) {
-    if (!this.socket) return;
+    if (!this.socket) {
+      console.warn('Socket not initialized, cannot emit:', event);
+      if (callback) callback({ success: false, error: 'Socket not connected' });
+      return;
+    }
+    if (!this.socket.connected) {
+      console.warn('Socket not connected, cannot emit:', event);
+      if (callback) callback({ success: false, error: 'Socket not connected' });
+      return;
+    }
     this.socket.emit(event, data, callback);
   }
 
@@ -72,6 +136,10 @@ class SocketService {
   }
 
   markRead(conversationId, messageIds) {
+    this.emit('mark-read', { conversationId, messageIds });
+  }
+
+  markReadSocket(conversationId, messageIds) {
     this.emit('mark-read', { conversationId, messageIds });
   }
 

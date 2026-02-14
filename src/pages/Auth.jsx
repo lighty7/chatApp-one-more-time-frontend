@@ -24,7 +24,9 @@ export default function Auth() {
         await register(formData);
       }
       navigate(from, { replace: true });
-    } catch {}
+    } catch (err) {
+      console.error('Auth error:', err);
+    }
   };
 
   const handleChange = (e) => {

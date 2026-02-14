@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore, useChatStore, useRoomsStore } from '../stores';
+import { usersAPI } from '../services/api';
 
 export default function ProfileTab() {
   const navigate = useNavigate();
@@ -8,6 +9,7 @@ export default function ProfileTab() {
   const { conversations } = useChatStore();
   const { rooms } = useRoomsStore();
   const [isEditing, setIsEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editData, setEditData] = useState({ displayName: user?.displayName || '', bio: user?.bio || '' });
 
   const handleLogout = async () => {
@@ -20,11 +22,47 @@ export default function ProfileTab() {
     setIsEditing(false);
   };
 
+  const handleDeleteAccount = async () => {
+    try {
+      await usersAPI.delete(user._id || user.id);
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error('Failed to delete account:', error);
+      alert('Failed to delete account. Please try again.');
+    }
+  };
+
   const getChatCount = () => conversations?.length || 0;
   const getRoomCount = () => rooms?.length || 0;
 
   return (
     <div className="h-full overflow-y-auto p-4">
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface p-6 rounded-xl max-w-sm mx-4">
+            <h3 className="text-lg font-bold text-red-400 mb-2">Delete Account</h3>
+            <p className="text-text-muted mb-4">
+              Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowDeleteConfirm(false)}
+                className="flex-1 py-3 bg-surface text-text rounded-lg font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                className="flex-1 py-3 bg-red-500 text-white rounded-lg font-medium"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col items-center mb-6">
         <div className="w-24 h-24 rounded-full bg-surface flex items-center justify-center text-primary text-4xl font-bold mb-4">
           {user?.displayName?.[0] || user?.username?.[0] || '?'}
@@ -104,6 +142,13 @@ export default function ProfileTab() {
         className="w-full mt-6 py-3 bg-red-500/20 text-red-400 rounded-xl font-medium"
       >
         Logout
+      </button>
+
+      <button
+        onClick={() => setShowDeleteConfirm(true)}
+        className="w-full mt-3 py-3 bg-red-600/20 text-red-500 rounded-xl font-medium"
+      >
+        Delete Account
       </button>
     </div>
   );

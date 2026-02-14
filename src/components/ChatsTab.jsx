@@ -1,29 +1,40 @@
 import { useNavigate } from 'react-router-dom';
-import { useChatStore } from '../stores';
+import { useChatStore, usePresenceStore } from '../stores';
 
 export default function ChatsTab() {
   const navigate = useNavigate();
   const { conversations, loading } = useChatStore();
+  const onlineUsers = usePresenceStore((s) => s.onlineUsers);
 
   const getChatName = (conv) => {
+    if (conv.displayName) return conv.displayName;
     if (conv.type === 'group') return conv.name;
-    const other = conv.participants?.find(p => !p.isMe);
+    const other = conv.otherParticipant;
     return other?.displayName || other?.username || 'Unknown';
   };
 
   const getChatAvatar = (conv) => {
     if (conv.type === 'group') {
       return (
-        <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-bg font-bold">
-          {conv.name?.[0]?.toUpperCase()}
+        <div className="relative">
+          <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-bg font-bold">
+            {conv.name?.[0]?.toUpperCase()}
+          </div>
         </div>
       );
     }
-    const other = conv.participants?.find(p => !p.isMe);
+    const other = conv.otherParticipant;
     const initial = other?.displayName?.[0] || other?.username?.[0] || '?';
+    const isOnline = other?._id && onlineUsers.has(other._id);
+    
     return (
-      <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary font-bold">
-        {initial.toUpperCase()}
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary font-bold">
+          {initial.toUpperCase()}
+        </div>
+        {isOnline && (
+          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 border-2 border-bg rounded-full"></div>
+        )}
       </div>
     );
   };

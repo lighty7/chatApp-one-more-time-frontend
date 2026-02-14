@@ -16,7 +16,9 @@ export default function RoomsTab() {
       setShowCreate(false);
       setNewRoom({ name: '', description: '' });
       navigate(`/room/${room.name}`);
-    } catch {}
+    } catch (err) {
+      console.error('Failed to create room:', err);
+    }
   };
 
   if (loading && !rooms.length) {

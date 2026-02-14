@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useRoomsStore, useAuthStore } from '../stores';
 
@@ -9,9 +9,7 @@ export default function RoomView() {
   const {
     activeRoom,
     roomMessages,
-    setActiveRoom,
     sendMessage,
-    fetchRoomMessages,
   } = useRoomsStore();
 
   const [input, setInput] = useState('');
@@ -19,7 +17,7 @@ export default function RoomView() {
   const messagesEndRef = useRef(null);
 
   const roomName = name;
-  const currentMessages = roomMessages[roomName] || [];
+  const currentMessages = useMemo(() => roomMessages[roomName] || [], [roomMessages, roomName]);
 
   useEffect(() => {
     const loadRoom = async () => {
@@ -37,7 +35,7 @@ export default function RoomView() {
     return () => {
       useRoomsStore.getState().setActiveRoom(null);
     };
-  }, [roomName]);
+  }, [roomName, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -51,7 +49,9 @@ export default function RoomView() {
     try {
       await sendMessage(input.trim());
       setInput('');
-    } catch {}
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
     setSending(false);
   };
 

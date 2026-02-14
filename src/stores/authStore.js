@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { authAPI, usersAPI } from '../services/api';
+import { authAPI } from '../services/api';
 import socketService from '../services/socket';
 
 export const useAuthStore = create((set, get) => ({
@@ -41,7 +41,9 @@ export const useAuthStore = create((set, get) => ({
   logout: async () => {
     try {
       await authAPI.logout();
-    } catch {}
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     socketService.disconnect();

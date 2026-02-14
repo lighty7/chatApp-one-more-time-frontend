@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import { useAuthStore, useChatStore, useRoomsStore } from '../stores';
 import ChatsTab from '../components/ChatsTab';
 import RoomsTab from '../components/RoomsTab';
 import ProfileTab from '../components/ProfileTab';
+import NotificationBell from '../components/NotificationBell';
 
 function MainLayout() {
   const navigate = useNavigate();
@@ -16,13 +17,14 @@ function MainLayout() {
       fetchConversations();
       fetchRooms();
     }
-  }, [user]);
+  }, [user, fetchConversations, fetchRooms]);
 
   return (
     <div className="min-h-screen flex flex-col bg-bg">
       <header className="bg-surface px-4 py-3 flex items-center justify-between shadow-md">
         <h1 className="text-xl font-bold text-primary">Chatterbox</h1>
         <div className="flex items-center gap-2">
+          <NotificationBell />
           <button
             onClick={() => navigate('/search')}
             className="p-2 rounded-lg hover:bg-bg transition-colors"

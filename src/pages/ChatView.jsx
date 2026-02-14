@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, useAuthStore } from '../stores';
 import { filesAPI } from '../services/api';
@@ -6,15 +6,12 @@ import { filesAPI } from '../services/api';
 export default function ChatView() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuthStore();
+  const user = useAuthStore((s) => s.user);
   const {
     activeConversation,
     messages,
     typingUsers,
-    setActiveConversation,
     sendMessage,
-    fetchMessages,
-    addMessage,
     markAsRead,
   } = useChatStore();
 
@@ -26,8 +23,10 @@ export default function ChatView() {
   const typingTimeoutRef = useRef(null);
 
   const conversationId = id;
-  const currentMessages = messages[conversationId] || [];
-  const convTypingUsers = typingUsers[conversationId] || [];
+  const currentMessages = useMemo(() => messages[conversationId] || [], [messages, conversationId]);
+  const convTypingUsers = useMemo(() => typingUsers[conversationId] || [], [typingUsers, conversationId]);
+
+  const currentUserId = user?._id || user?.id;
 
   useEffect(() => {
     const loadConversation = async () => {
@@ -45,22 +44,23 @@ export default function ChatView() {
     return () => {
       useChatStore.getState().setActiveConversation(null);
     };
-  }, [conversationId]);
+  }, [conversationId, navigate]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [currentMessages]);
 
   useEffect(() => {
-    if (currentMessages.length > 0) {
+    if (currentMessages.length > 0 && currentUserId) {
       const unread = currentMessages
-        .filter(m => !m.sender?.isMe && !m.readBy?.includes(user?.id))
+        .filter(m => m.sender?._id !== currentUserId && m.sender?.id !== currentUserId)
+        .filter(m => !m.readBy?.some(r => r.user === currentUserId))
         .map(m => m._id);
       if (unread.length > 0) {
         markAsRead(conversationId, unread);
       }
     }
-  }, [currentMessages]);
+  }, [currentMessages, conversationId, markAsRead, currentUserId]);
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -70,7 +70,9 @@ export default function ChatView() {
     try {
       await sendMessage(input.trim());
       setInput('');
-    } catch {}
+    } catch (err) {
+      console.error('Failed to send message:', err);
+    }
     setSending(false);
   };
 
@@ -103,8 +105,9 @@ export default function ChatView() {
 
   const getChatName = () => {
     if (!activeConversation) return '';
+    if (activeConversation.displayName) return activeConversation.displayName;
     if (activeConversation.type === 'group') return activeConversation.name;
-    const other = activeConversation.participants?.find(p => !p.isMe);
+    const other = activeConversation.otherParticipant;
     return other?.displayName || other?.username || 'Unknown';
   };
 
@@ -129,11 +132,12 @@ export default function ChatView() {
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {currentMessages.map((msg) => {
-          const isMe = msg.sender?.isMe || msg.sender?._id === user?.id || msg.sender?.id === user?.id;
+        {currentMessages.map((msg, index) => {
+          const isMe = msg.sender?._id === currentUserId || msg.sender?.id === currentUserId;
+          const isRead = msg.readBy?.some(r => r.user !== currentUserId);
           return (
             <div
-              key={msg._id || msg.id}
+              key={msg._id || msg.id || `msg-${index}`}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
             >
               <div
@@ -145,7 +149,7 @@ export default function ChatView() {
               >
                 {!isMe && !isGroup && (
                   <div className="text-xs text-primary font-medium mb-1">
-                    {msg.sender?.displayName || msg.sender?.username}
+                    {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
                   </div>
                 )}
                 {msg.type === 'file' ? (
@@ -163,8 +167,21 @@ export default function ChatView() {
                 ) : (
                   <p className="break-words">{msg.content}</p>
                 )}
-                <div className={`text-xs mt-1 ${isMe ? 'text-bg/70' : 'text-text-muted'}`}>
-                  {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-bg/70' : 'text-text-muted'}`}>
+                  <span>{msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                  {isMe && (
+                    <span>
+                      {isRead ? (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -172,8 +189,14 @@ export default function ChatView() {
         })}
         
         {convTypingUsers.length > 0 && (
-          <div className="text-sm text-text-muted italic">
-            {convTypingUsers.length === 1 ? 'Someone' : `${convTypingUsers.length} people`} typing...
+          <div className="flex justify-start">
+            <div className="bg-surface px-4 py-3 rounded-2xl rounded-bl-md">
+              <div className="flex gap-1">
+                <span className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                <span className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                <span className="w-2 h-2 bg-text-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+              </div>
+            </div>
           </div>
         )}
         

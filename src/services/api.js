@@ -55,6 +55,7 @@ export const usersAPI = {
   getById: (id) => api.get(`/users/${id}`),
   getByUsername: (username) => api.get(`/users/username/${username}`),
   update: (id, data) => api.put(`/users/${id}`, data),
+  delete: (id) => api.delete(`/users/${id}`),
 };
 
 export const conversationsAPI = {
