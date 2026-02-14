@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: chat-frontend-config
+  namespace: chat-system
+  labels:
+    app.kubernetes.io/name: chat-frontend
+    app.kubernetes.io/component: config
+data:
+  API_URL: "/api"
+  WS_URL: "/socket.io"

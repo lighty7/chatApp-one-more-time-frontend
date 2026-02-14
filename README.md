@@ -50,55 +50,19 @@ A modern real-time chat application frontend built with React, featuring direct 
 - **HTTP Client**: Axios
 - **Real-time**: Socket.io Client
 - **Build Tool**: Vite
+- **Server**: Nginx (production)
+- **Container**: Docker
+- **Orchestration**: Kubernetes
 
-## Project Structure
-
-```
-chat-frontend/
-├── src/
-│   ├── components/          # Reusable UI components
-│   │   ├── ChatsTab.jsx     # Chat list tab
-│   │   ├── NotificationBell.jsx
-│   │   ├── NotificationToast.jsx
-│   │   ├── ProfileTab.jsx    # User profile tab
-│   │   └── RoomsTab.jsx     # Room list tab
-│   ├── pages/               # Page components
-│   │   ├── AIChatView.jsx   # AI assistant chat
-│   │   ├── Auth.jsx         # Login/Register
-│   │   ├── ChatView.jsx     # Direct message view
-│   │   ├── CreateGroup.jsx # Group creation
-│   │   ├── Main.jsx         # Main layout with tabs
-│   │   ├── RoomView.jsx     # Room chat view
-│   │   └── SearchUsers.jsx  # User search
-│   ├── services/            # API and socket services
-│   │   ├── api.js           # Axios API client
-│   │   └── socket.js        # Socket.io service
-│   ├── stores/             # Zustand state stores
-│   │   ├── aiStore.js       # AI chat state
-│   │   ├── authStore.js     # Authentication state
-│   │   ├── chatStore.js     # Chat state
-│   │   ├── index.js         # Store exports
-│   │   ├── notificationStore.js
-│   │   ├── presenceStore.js
-│   │   └── roomsStore.js
-│   ├── App.jsx              # Main app component
-│   ├── index.css            # Global styles
-│   └── main.jsx             # Entry point
-├── index.html
-├── package.json
-├── vite.config.js
-└── eslint.config.js
-```
-
-## Getting Started
+## Quick Start
 
 ### Prerequisites
 
 - Node.js 18+
 - npm or yarn
-- Running backend server (see [the-one-and-only](https://github.com/lighty7/chatApp-one-more-time))
+- Running backend server
 
-### Installation
+### Development
 
 ```bash
 # Clone the repository
@@ -114,26 +78,278 @@ npm install
 npm run dev
 ```
 
-### Environment Variables
+The app will be available at `http://localhost:5173`
 
-Create a `.env` file in the root directory:
+## Docker
+
+### Building the Image
+
+Build the production Docker image:
+
+```bash
+docker build -t chat-frontend:latest .
+```
+
+Or use the multi-stage build with custom environment variables:
+
+```bash
+docker build \
+  --build-arg VITE_API_URL=http://your-api-url/api \
+  --build-arg VITE_WS_URL=http://your-api-url \
+  -t chat-frontend:latest .
+```
+
+### Running Locally
+
+```bash
+# Run the container
+docker run -d -p 80:80 --name chat-frontend chat-frontend:latest
+```
+
+The app will be available at `http://localhost`
+
+### Docker Compose
+
+Create a `docker-compose.yml` for local development with backend:
+
+```yaml
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "80:80"
+    environment:
+      - VITE_API_URL=http://localhost:3000/api
+      - VITE_WS_URL=http://localhost:3000
+    depends_on:
+      - backend
+
+  backend:
+    image: chat-backend:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - MONGODB_URI=mongodb://mongo:27017/chat
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    depends_on:
+      - mongo
+      - redis
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+
+volumes:
+  mongo-data:
+  redis-data:
+```
+
+Run with Docker Compose:
+
+```bash
+docker-compose up -d
+```
+
+## Kubernetes
+
+### Prerequisites
+
+- Kubernetes cluster (minikube, kind, or cloud provider)
+- kubectl configured
+- Nginx Ingress Controller installed
+
+### Architecture
+
+```
+Internet → Ingress → Frontend Pod (nginx:80)
+                        └─ Static files served
+
+         → Backend Service (chat-service:80)
+            └─ API + WebSocket
+```
+
+### Deploying
+
+1. **Apply the namespace and config:**
+
+```bash
+kubectl apply -f kubernetes/
+```
+
+2. **Update the image:**
+
+```bash
+kubectl set image deployment/chat-frontend chat-frontend=ghcr.io/lighty7/chatapp-one-more-time-frontend:latest -n chat-system
+```
+
+3. **Check deployment status:**
+
+```bash
+kubectl rollout status deployment/chat-frontend -n chat-system
+```
+
+4. **View pods:**
+
+```bash
+kubectl get pods -n chat-system
+```
+
+5. **View logs:**
+
+```bash
+kubectl logs -f deployment/chat-frontend -n chat-system
+```
+
+### Scaling
+
+```bash
+# Scale to 3 replicas
+kubectl scale deployment chat-frontend --replicas=3 -n chat-system
+
+# Enable HPA (auto-scaling)
+kubectl autoscale deployment chat-frontend --min=2 --max=10 --cpu-percent=70 -n chat-system
+```
+
+### Ingress Configuration
+
+The ingress routes:
+- `/` → Frontend service (serves SPA)
+- `/api/*` → Backend API
+- `/socket.io/*` → WebSocket
+
+Update `kubernetes/ingress.yaml` with your domain:
+
+```yaml
+spec:
+  rules:
+    - host: chat.yourdomain.com  # Change this
+```
+
+## CI/CD GitHub Actions
+
+### Workflow Overview
+
+The CI/CD pipeline automatically:
+
+1. **Lint** - Runs ESLint on code
+2. **Build** - Creates production build
+3. **Security** - Runs npm audit and TruffleHog
+4. **Docker Build** - Builds and pushes Docker image
+5. **Deploy** - Deploys to Kubernetes (main branch only)
+
+### GitHub Secrets Required
+
+Configure these in your GitHub repository settings:
+
+| Secret | Description |
+|--------|-------------|
+| `KUBECONFIG` | Kubernetes config file for deployment |
+
+### GitHub Variables Required
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `VITE_API_URL` | Production API URL | `https://api.chat.example.com/api` |
+| `VITE_WS_URL` | Production WebSocket URL | `https://api.chat.example.com` |
+
+### Setting Up
+
+1. Go to Repository Settings → Secrets and variables → Actions
+2. Add the required secrets
+3. Push to `main` or `dev` branch to trigger pipeline
+
+### Manual Deployment
+
+To deploy a specific version:
+
+```bash
+# Tag a release
+git tag v1.0.0
+git push origin v1.0.0
+
+# Or deploy from GitHub Actions manually
+```
+
+## Environment Variables
+
+### Vite Environment Variables
+
+In Vite, environment variables must be prefixed with `VITE_` to be exposed to the client.
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `VITE_API_URL` | Backend API URL | `/api` |
+| `VITE_WS_URL` | WebSocket URL | `/socket.io` |
+
+### Development (.env.local)
 
 ```env
 VITE_API_URL=http://localhost:3000/api
+VITE_WS_URL=http://localhost:3000
 ```
 
-### Build for Production
+### Production
+
+Set during Docker build:
 
 ```bash
-npm run build
+docker build --build-arg VITE_API_URL=https://api.example.com/api ...
 ```
 
-The build output will be in the `dist` folder.
+Or in Kubernetes deployment:
 
-### Preview Production Build
+```yaml
+spec:
+  containers:
+    - name: chat-frontend
+      image: chat-frontend:latest
+      env:
+        - name: VITE_API_URL
+          value: "https://api.example.com/api"
+```
 
-```bash
-npm run preview
+## Project Structure
+
+```
+chat-frontend/
+├── .github/
+│   └── workflows/
+│       └── ci.yml              # CI/CD pipeline
+├── docker/
+│   ├── Dockerfile              # Multi-stage build
+│   └── nginx.conf              # Nginx configuration
+├── kubernetes/
+│   ├── frontend-deployment.yaml # K8s deployment
+│   ├── configmap.yaml          # Configuration
+│   └── ingress.yaml            # Ingress routing
+├── src/
+│   ├── components/             # Reusable UI components
+│   ├── pages/                  # Page components
+│   ├── services/               # API and socket services
+│   ├── stores/                 # Zustand state stores
+│   ├── App.jsx                 # Main app component
+│   ├── index.css               # Global styles
+│   └── main.jsx                # Entry point
+├── .dockerignore
+├── Dockerfile
+├── package.json
+├── vite.config.js
+└── eslint.config.js
 ```
 
 ## API Endpoints
@@ -209,6 +425,46 @@ The app uses Zustand for state management with the following stores:
 - **notificationStore**: Notifications
 - **presenceStore**: User online status
 - **aiStore**: AI assistant state
+
+## Production Build
+
+```bash
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
+```
+
+The build output will be in the `dist` folder, ready to be served by nginx.
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API not connecting**
+   - Check VITE_API_URL environment variable
+   - Verify backend is running
+   - Check CORS settings
+
+2. **WebSocket not working**
+   - Verify VITE_WS_URL is correct
+   - Check nginx WebSocket proxy configuration
+   - Ensure Ingress supports WebSocket
+
+3. **Build fails**
+   - Clear node_modules and reinstall
+   - Check for TypeScript/eslint errors
+
+### Logs
+
+```bash
+# Kubernetes logs
+kubectl logs -f deployment/chat-frontend -n chat-system
+
+# Docker logs
+docker logs -f chat-frontend
+```
 
 ## Contributing
 
