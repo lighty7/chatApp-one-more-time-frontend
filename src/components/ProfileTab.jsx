@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuthStore, useChatStore, useRoomsStore } from '../stores';
+import { useAuthStore, useChatStore, useRoomsStore, useAIStore } from '../stores';
 import { usersAPI } from '../services/api';
 
 export default function ProfileTab() {
@@ -8,9 +8,14 @@ export default function ProfileTab() {
   const { user, logout, updateUser } = useAuthStore();
   const { conversations } = useChatStore();
   const { rooms } = useRoomsStore();
+  const { models, preferredModel, fetchModels, setPreferredModel } = useAIStore();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editData, setEditData] = useState({ displayName: user?.displayName || '', bio: user?.bio || '' });
+
+  useEffect(() => {
+    fetchModels();
+  }, []);
 
   const handleLogout = async () => {
     await logout();
@@ -31,6 +36,10 @@ export default function ProfileTab() {
       console.error('Failed to delete account:', error);
       alert('Failed to delete account. Please try again.');
     }
+  };
+
+  const handleModelChange = (e) => {
+    setPreferredModel(e.target.value);
   };
 
   const getChatCount = () => conversations?.length || 0;
@@ -111,6 +120,31 @@ export default function ProfileTab() {
             </button>
           </>
         )}
+      </div>
+
+      <button
+        onClick={() => navigate('/ai-chat')}
+        className="w-full mb-4 py-3 bg-primary/20 text-primary rounded-xl font-medium flex items-center justify-center gap-2"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+        </svg>
+        Chat with AI
+      </button>
+
+      <div className="bg-surface rounded-xl p-4 mb-4">
+        <h3 className="font-medium mb-3">AI Model</h3>
+        <select
+          value={preferredModel}
+          onChange={handleModelChange}
+          className="w-full px-4 py-3 bg-bg rounded-lg text-text focus:outline-none focus:ring-2 focus:ring-primary"
+        >
+          {models.map((model) => (
+            <option key={model.name} value={model.name}>
+              {model.name}
+            </option>
+          ))}
+        </select>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">

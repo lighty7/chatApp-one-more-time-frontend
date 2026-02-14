@@ -180,6 +180,19 @@ class SocketService {
       });
     });
   }
+
+  sendAIMessage(message, conversationHistory) {
+    return new Promise((resolve, reject) => {
+      this.emit('ai-message', { message, conversationHistory }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
+  stopAIMessage() {
+    this.emit('ai-stop');
+  }
 }
 
 export const socketService = new SocketService();

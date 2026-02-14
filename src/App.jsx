@@ -9,6 +9,7 @@ import ChatView from './pages/ChatView';
 import RoomView from './pages/RoomView';
 import SearchUsers from './pages/SearchUsers';
 import CreateGroup from './pages/CreateGroup';
+import AIChatView from './pages/AIChatView';
 import NotificationToast from './components/NotificationToast';
 
 function PrivateRoute({ children }) {
@@ -77,6 +78,7 @@ function App() {
         <Route path="/room/:name" element={<PrivateRoute><RoomView /></PrivateRoute>} />
         <Route path="/search" element={<PrivateRoute><SearchUsers /></PrivateRoute>} />
         <Route path="/create-group" element={<PrivateRoute><CreateGroup /></PrivateRoute>} />
+        <Route path="/ai-chat" element={<PrivateRoute><AIChatView /></PrivateRoute>} />
       </Routes>
       <NotificationToast />
     </BrowserRouter>

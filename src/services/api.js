@@ -86,4 +86,11 @@ export const filesAPI = {
   getByRoom: (roomId, page = 1, limit = 20) => api.get(`/files/room/${roomId}?page=${page}&limit=${limit}`),
 };
 
+export const aiAPI = {
+  getModels: () => api.get('/ai/models'),
+  chat: (message, conversationHistory) => api.post('/ai/chat', { message, conversationHistory }),
+  setPreferredModel: (model) => api.put('/ai/model', { model }),
+  getPreferredModel: () => api.get('/ai/model'),
+};
+
 export default api;
