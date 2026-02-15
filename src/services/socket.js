@@ -151,6 +151,24 @@ class SocketService {
     this.emit('stop-typing', { conversationId });
   }
 
+  addReaction(conversationId, messageId, emoji) {
+    return new Promise((resolve, reject) => {
+      this.emit('add-reaction', { conversationId, messageId, emoji }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
+  removeReaction(conversationId, messageId, emoji) {
+    return new Promise((resolve, reject) => {
+      this.emit('remove-reaction', { conversationId, messageId, emoji }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
   joinRoom(roomName) {
     return new Promise((resolve, reject) => {
       this.emit('join-room', { roomName }, (response) => {
