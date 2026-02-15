@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { api } from '../services/api';
 
 const useReactionStore = create((set, get) => ({
   loadingReactions: {},

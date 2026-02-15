@@ -24,12 +24,12 @@ describe('Mobile Touch Interactions', () => {
       const callback = vi.fn();
       const LONG_PRESS_DURATION = 500;
 
-      jest.useFakeTimers();
+      vi.useFakeTimers();
       setTimeout(callback, LONG_PRESS_DURATION);
-      jest.advanceTimersByTime(LONG_PRESS_DURATION);
+      vi.advanceTimersByTime(LONG_PRESS_DURATION);
       
       expect(callback).toHaveBeenCalled();
-      jest.useRealTimers();
+      vi.useRealTimers();
     });
   });
 
@@ -41,10 +41,8 @@ describe('Mobile Touch Interactions', () => {
         writable: true
       });
 
-      if (navigator.vibrate) {
-        navigator.vibrate(50);
-        expect(mockVibrate).toHaveBeenCalledWith(50);
-      }
+      navigator.vibrate(50);
+      expect(mockVibrate).toHaveBeenCalledWith(50);
     });
 
     it('should handle missing vibrate API gracefully', () => {

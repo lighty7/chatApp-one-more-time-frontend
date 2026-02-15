@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { ALLOWED_REACTIONS, REACTION_COLORS, MAX_REACTIONS_PER_MESSAGE } from '../constants/reactions';
 
 describe('Reactions Constants', () => {
