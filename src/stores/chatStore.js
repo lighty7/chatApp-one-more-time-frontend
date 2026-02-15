@@ -221,6 +221,48 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  addReaction: async (messageId, emoji) => {
+    const { activeConversation } = get();
+    if (!activeConversation) return;
+    
+    const convId = activeConversation._id || activeConversation.id;
+    try {
+      await socketService.addReaction(convId, messageId, emoji);
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      throw error;
+    }
+  },
+
+  removeReaction: async (messageId, emoji) => {
+    const { activeConversation } = get();
+    if (!activeConversation) return;
+    
+    const convId = activeConversation._id || activeConversation.id;
+    try {
+      await socketService.removeReaction(convId, messageId, emoji);
+    } catch (error) {
+      console.error('Failed to remove reaction:', error);
+      throw error;
+    }
+  },
+
+  updateMessageReactions: (conversationId, messageId, reactions) => {
+    const currentMessages = get().messages[conversationId] || [];
+    const updatedMessages = currentMessages.map(msg => {
+      if (msg._id === messageId) {
+        return { ...msg, reactions };
+      }
+      return msg;
+    });
+    set({
+      messages: {
+        ...get().messages,
+        [conversationId]: updatedMessages
+      }
+    });
+  },
+
   setUser: (user) => {
     set({ user });
   },
@@ -293,6 +335,20 @@ export const useChatStore = create((set, get) => ({
 
     socketService.on('user-stop-typing', ({ userId, conversationId }) => {
       get().setTyping(conversationId, userId, false);
+    });
+
+    socketService.on('message-reaction-added', ({ messageId, message }) => {
+      const convId = message.conversationId;
+      if (convId) {
+        get().updateMessageReactions(convId, messageId, message.reactions);
+      }
+    });
+
+    socketService.on('message-reaction-removed', ({ messageId, message }) => {
+      const convId = message.conversationId;
+      if (convId) {
+        get().updateMessageReactions(convId, messageId, message.reactions);
+      }
     });
   },
 }));
