@@ -6,35 +6,160 @@ import ReactionPicker from '../components/ReactionPicker';
 import ReactionBadge from '../components/ReactionBadge';
 import { ALLOWED_REACTIONS, LONG_PRESS_DURATION, HAPTIC_FEEDBACK_ENABLED } from '../constants/reactions';
 
-function useLongPress(callback, duration = LONG_PRESS_DURATION) {
+function MessageItem({ 
+  msg, 
+  isMe, 
+  isRead, 
+  currentUserId, 
+  isGroup, 
+  showEmojiPicker, 
+  toggleEmojiPicker, 
+  handleReaction, 
+  startReply 
+}) {
   const timerRef = useRef(null);
-  const isLongPressRef = useRef(false);
 
-  const startLongPress = useCallback((e) => {
-    isLongPressRef.current = false;
-    timerRef.current = setTimeout(() => {
-      isLongPressRef.current = true;
-      if (HAPTIC_FEEDBACK_ENABLED && navigator.vibrate) {
-        navigator.vibrate(50);
-      }
-      callback(e);
-    }, duration);
-  }, [callback, duration]);
+  const handleLongPress = useCallback(() => {
+    if (HAPTIC_FEEDBACK_ENABLED && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+    toggleEmojiPicker(msg._id);
+  }, [msg._id, toggleEmojiPicker]);
 
-  const cancelLongPress = useCallback(() => {
+  const handleTouchStart = useCallback(() => {
+    timerRef.current = setTimeout(handleLongPress, LONG_PRESS_DURATION);
+  }, [handleLongPress]);
+
+  const handleTouchEnd = useCallback(() => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
   }, []);
 
-  return {
-    onTouchStart: startLongPress,
-    onTouchEnd: cancelLongPress,
-    onMouseDown: startLongPress,
-    onMouseUp: cancelLongPress,
-    onMouseLeave: cancelLongPress,
-  };
+  const handleMouseDown = useCallback(() => {
+    timerRef.current = setTimeout(handleLongPress, LONG_PRESS_DURATION);
+  }, [handleLongPress]);
+
+  const handleMouseUp = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return (
+    <div
+      className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+    >
+      <div
+        className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+          isMe
+            ? 'bg-primary text-bg rounded-br-md'
+            : 'bg-surface rounded-bl-md'
+        }`}
+      >
+        {!isMe && !isGroup && (
+          <div className="text-xs text-primary font-medium mb-1">
+            {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
+          </div>
+        )}
+        {(msg.replyTo || msg.replyTo?._id) && (
+          <div className="text-xs text-text-muted border-l-2 border-primary/50 pl-2 mb-1">
+            <span className="font-medium">
+              {msg.replyTo?.sender?.displayName || msg.replyTo?.sender?.username || 'Unknown'}
+            </span>
+            <p className="truncate">{msg.replyTo?.content?.slice(0, 30)}</p>
+          </div>
+        )}
+        {msg.type === 'file' ? (
+          <a
+            href={msg.attachment?.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-2 hover:underline"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+            </svg>
+            {msg.content}
+          </a>
+        ) : (
+          <p className="break-words">{msg.content}</p>
+        )}
+        <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-bg/70' : 'text-text-muted'}`}>
+          <span>{msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          {isMe && (
+            <span>
+              {isRead ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              )}
+            </span>
+          )}
+        </div>
+        {msg.reactions && msg.reactions.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-2">
+            {Object.entries(
+              msg.reactions.reduce((acc, r) => {
+                const emoji = r.emoji;
+                if (!acc[emoji]) acc[emoji] = [];
+                acc[emoji].push(r.user?._id || r.user);
+                return acc;
+              }, {})
+            ).map(([emoji, users]) => (
+              <button
+                key={emoji}
+                onClick={() => handleReaction(msg._id, emoji)}
+                className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                  users.includes(currentUserId)
+                    ? 'bg-primary/30 ring-1 ring-primary'
+                    : 'bg-bg/50'
+                }`}
+              >
+                <span>{emoji}</span>
+                <span className="text-[10px]">{users.length}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => toggleEmojiPicker(msg._id)}
+        className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
+        aria-label="Add reaction"
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+      </button>
+      <button
+        onClick={() => startReply(msg)}
+        className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
+        aria-label="Reply to message"
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+        </svg>
+      </button>
+      {showEmojiPicker === msg._id && (
+        <ReactionPicker 
+          onSelect={(emoji) => handleReaction(msg._id, emoji)} 
+          position={isMe ? 'left' : 'right'}
+        />
+      )}
+    </div>
+  );
 }
 
 export default function ChatView() {
@@ -226,113 +351,18 @@ export default function ChatView() {
           const isMe = msg.sender?._id === currentUserId || msg.sender?.id === currentUserId;
           const isRead = msg.readBy?.some(r => r.user !== currentUserId);
           return (
-            <div
+            <MessageItem
               key={msg._id || msg.id || `msg-${index}`}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}
-              {...useLongPress(() => toggleEmojiPicker(msg._id), LONG_PRESS_DURATION)}
-            >
-              <div
-                className={`max-w-[75%] px-4 py-2 rounded-2xl ${
-                  isMe
-                    ? 'bg-primary text-bg rounded-br-md'
-                    : 'bg-surface rounded-bl-md'
-                }`}
-              >
-                {!isMe && !isGroup && (
-                  <div className="text-xs text-primary font-medium mb-1">
-                    {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
-                  </div>
-                )}
-                {(msg.replyTo || msg.replyTo?._id) && (
-                  <div className="text-xs text-text-muted border-l-2 border-primary/50 pl-2 mb-1">
-                    <span className="font-medium">
-                      {msg.replyTo?.sender?.displayName || msg.replyTo?.sender?.username || 'Unknown'}
-                    </span>
-                    <p className="truncate">{msg.replyTo?.content?.slice(0, 30)}</p>
-                  </div>
-                )}
-                {msg.type === 'file' ? (
-                  <a
-                    href={msg.attachment?.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-2 hover:underline"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-                    </svg>
-                    {msg.content}
-                  </a>
-                ) : (
-                  <p className="break-words">{msg.content}</p>
-                )}
-                <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-bg/70' : 'text-text-muted'}`}>
-                  <span>{msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                  {isMe && (
-                    <span>
-                      {isRead ? (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                      ) : (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      )}
-                    </span>
-                  )}
-                </div>
-                {msg.reactions && msg.reactions.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {Object.entries(
-                      msg.reactions.reduce((acc, r) => {
-                        const emoji = r.emoji;
-                        if (!acc[emoji]) acc[emoji] = [];
-                        acc[emoji].push(r.user?._id || r.user);
-                        return acc;
-                      }, {})
-                    ).map(([emoji, users]) => (
-                      <button
-                        key={emoji}
-                        onClick={() => handleReaction(msg._id, emoji)}
-                        className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
-                          users.includes(currentUserId)
-                            ? 'bg-primary/30 ring-1 ring-primary'
-                            : 'bg-bg/50'
-                        }`}
-                      >
-                        <span>{emoji}</span>
-                        <span className="text-[10px]">{users.length}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <button
-                onClick={() => toggleEmojiPicker(msg._id)}
-                className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
-                aria-label="Add reaction"
-              >
-                <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </button>
-              <button
-                onClick={() => startReply(msg)}
-                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
-                aria-label="Reply to message"
-              >
-                <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-                </svg>
-              </button>
-              {showEmojiPicker === msg._id && (
-                <ReactionPicker 
-                  onSelect={(emoji) => handleReaction(msg._id, emoji)} 
-                  position={isMe ? 'left' : 'right'}
-                />
-              )}
-            </div>
+              msg={msg}
+              isMe={isMe}
+              isRead={isRead}
+              currentUserId={currentUserId}
+              isGroup={isGroup}
+              showEmojiPicker={showEmojiPicker}
+              toggleEmojiPicker={toggleEmojiPicker}
+              handleReaction={handleReaction}
+              startReply={startReply}
+            />
           );
         })}
         
