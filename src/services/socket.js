@@ -126,9 +126,9 @@ class SocketService {
     this.emit('leave-conversation', { conversationId });
   }
 
-  sendMessage(conversationId, content, type = 'text', attachmentId = null) {
+  sendMessage(conversationId, content, type = 'text', attachmentId = null, replyTo = null) {
     return new Promise((resolve, reject) => {
-      this.emit('send-message', { conversationId, content, type, attachmentId }, (response) => {
+      this.emit('send-message', { conversationId, content, type, attachmentId, replyTo }, (response) => {
         if (response?.error) reject(response.error);
         else resolve(response);
       });
