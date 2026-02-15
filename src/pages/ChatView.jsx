@@ -1,10 +1,41 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, useAuthStore } from '../stores';
 import { filesAPI } from '../services/api';
 import ReactionPicker from '../components/ReactionPicker';
 import ReactionBadge from '../components/ReactionBadge';
-import { ALLOWED_REACTIONS } from '../constants/reactions';
+import { ALLOWED_REACTIONS, LONG_PRESS_DURATION, HAPTIC_FEEDBACK_ENABLED } from '../constants/reactions';
+
+function useLongPress(callback, duration = LONG_PRESS_DURATION) {
+  const timerRef = useRef(null);
+  const isLongPressRef = useRef(false);
+
+  const startLongPress = useCallback((e) => {
+    isLongPressRef.current = false;
+    timerRef.current = setTimeout(() => {
+      isLongPressRef.current = true;
+      if (HAPTIC_FEEDBACK_ENABLED && navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      callback(e);
+    }, duration);
+  }, [callback, duration]);
+
+  const cancelLongPress = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+      timerRef.current = null;
+    }
+  }, []);
+
+  return {
+    onTouchStart: startLongPress,
+    onTouchEnd: cancelLongPress,
+    onMouseDown: startLongPress,
+    onMouseUp: cancelLongPress,
+    onMouseLeave: cancelLongPress,
+  };
+}
 
 export default function ChatView() {
   const { id } = useParams();
@@ -198,6 +229,7 @@ export default function ChatView() {
             <div
               key={msg._id || msg.id || `msg-${index}`}
               className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}
+              {...useLongPress(() => toggleEmojiPicker(msg._id), LONG_PRESS_DURATION)}
             >
               <div
                 className={`max-w-[75%] px-4 py-2 rounded-2xl ${
@@ -278,7 +310,8 @@ export default function ChatView() {
               </div>
               <button
                 onClick={() => toggleEmojiPicker(msg._id)}
-                className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
+                className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
+                aria-label="Add reaction"
               >
                 <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -286,7 +319,8 @@ export default function ChatView() {
               </button>
               <button
                 onClick={() => startReply(msg)}
-                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
+                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
+                aria-label="Reply to message"
               >
                 <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />

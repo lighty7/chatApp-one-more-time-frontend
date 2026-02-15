@@ -7,7 +7,11 @@ export default function ReactionPicker({ onSelect, position = 'left' }) {
         <button
           key={emoji}
           onClick={() => onSelect(emoji)}
-          className="w-8 h-8 flex items-center justify-center text-lg hover:bg-bg/50 rounded transition-colors"
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            onSelect(emoji);
+          }}
+          className="w-10 h-10 flex items-center justify-center text-xl hover:bg-bg/50 active:bg-primary/20 rounded transition-colors touch-manipulation"
         >
           {emoji}
         </button>

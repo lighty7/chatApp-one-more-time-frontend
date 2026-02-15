@@ -15,3 +15,6 @@ export const MAX_REACTIONS_PER_MESSAGE = 20;
 export const REACTION_ANIMATION_DURATION = 200;
 
 export const REACTION_GROUP_NAME = 'Quick Reactions';
+
+export const LONG_PRESS_DURATION = 500;
+export const HAPTIC_FEEDBACK_ENABLED = true;
