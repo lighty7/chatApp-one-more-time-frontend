@@ -13,3 +13,5 @@ export const REACTION_COLORS = {
 
 export const MAX_REACTIONS_PER_MESSAGE = 20;
 export const REACTION_ANIMATION_DURATION = 200;
+
+export const REACTION_GROUP_NAME = 'Quick Reactions';

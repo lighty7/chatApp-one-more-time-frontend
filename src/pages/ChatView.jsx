@@ -6,8 +6,6 @@ import ReactionPicker from '../components/ReactionPicker';
 import ReactionBadge from '../components/ReactionBadge';
 import { ALLOWED_REACTIONS } from '../constants/reactions';
 
-import { ALLOWED_REACTIONS } from '../constants/reactions';
-
 export default function ChatView() {
   const { id } = useParams();
   const navigate = useNavigate();
