@@ -150,6 +150,16 @@ export default function ChatView() {
 
   const isGroup = activeConversation?.type === 'group';
 
+  const handleLeave = async () => {
+    if (!confirm('Are you sure you want to leave this conversation?')) return;
+    try {
+      await useChatStore.getState().leaveConversation(conversationId);
+      navigate('/chats');
+    } catch (error) {
+      console.error('Failed to leave:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-screen bg-bg">
       <header className="bg-surface px-4 py-3 flex items-center gap-3 shadow-md">
@@ -166,6 +176,17 @@ export default function ChatView() {
             </p>
           )}
         </div>
+        {(isGroup || activeConversation?.type === 'direct') && (
+          <button
+            onClick={handleLeave}
+            className="p-2 text-text-muted hover:text-red-500 transition-colors"
+            title="Leave conversation"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        )}
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
