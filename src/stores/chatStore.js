@@ -74,7 +74,7 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  sendMessage: async (content, type = 'text', attachmentId = null) => {
+  sendMessage: async (content, type = 'text', attachmentId = null, replyTo = null) => {
     const { activeConversation } = get();
     if (!activeConversation) return;
     
@@ -90,7 +90,8 @@ export const useChatStore = create((set, get) => ({
         sender: { _id: get().user?._id, displayName: get().user?.displayName },
         createdAt: new Date().toISOString(),
         readBy: [{ user: get().user?._id, readAt: new Date().toISOString() }],
-        status: 'sending'
+        status: 'sending',
+        replyTo
       };
       
       set({
@@ -104,7 +105,8 @@ export const useChatStore = create((set, get) => ({
         convId,
         content,
         type,
-        attachmentId
+        attachmentId,
+        replyTo
       );
       
       set({
