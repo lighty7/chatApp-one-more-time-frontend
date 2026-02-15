@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { LONG_PRESS_DURATION, HAPTIC_FEEDBACK_ENABLED } from '../constants/reactions';
 
 describe('Mobile Touch Interactions', () => {
   beforeEach(() => {
@@ -78,12 +79,10 @@ describe('Mobile Touch Interactions', () => {
 
 describe('Reaction Constants', () => {
   it('should have correct long press duration', () => {
-    const { LONG_PRESS_DURATION } = require('../constants/reactions');
     expect(LONG_PRESS_DURATION).toBe(500);
   });
 
   it('should have haptic feedback enabled by default', () => {
-    const { HAPTIC_FEEDBACK_ENABLED } = require('../constants/reactions');
     expect(HAPTIC_FEEDBACK_ENABLED).toBe(true);
   });
 });
