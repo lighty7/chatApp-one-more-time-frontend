@@ -21,6 +21,7 @@ export default function ChatView() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [replyTo, setReplyTo] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -71,12 +72,21 @@ export default function ChatView() {
     
     setSending(true);
     try {
-      await sendMessage(input.trim());
+      await sendMessage(input.trim(), 'text', null, replyTo?._id || null);
       setInput('');
+      setReplyTo(null);
     } catch (err) {
       console.error('Failed to send message:', err);
     }
     setSending(false);
+  };
+
+  const startReply = (message) => {
+    setReplyTo(message);
+  };
+
+  const cancelReply = () => {
+    setReplyTo(null);
   };
 
   const handleTyping = () => {
@@ -179,6 +189,14 @@ export default function ChatView() {
                     {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
                   </div>
                 )}
+                {(msg.replyTo || msg.replyTo?._id) && (
+                  <div className="text-xs text-text-muted border-l-2 border-primary/50 pl-2 mb-1">
+                    <span className="font-medium">
+                      {msg.replyTo?.sender?.displayName || msg.replyTo?.sender?.username || 'Unknown'}
+                    </span>
+                    <p className="truncate">{msg.replyTo?.content?.slice(0, 30)}</p>
+                  </div>
+                )}
                 {msg.type === 'file' ? (
                   <a
                     href={msg.attachment?.url}
@@ -238,10 +256,18 @@ export default function ChatView() {
               </div>
               <button
                 onClick={() => toggleEmojiPicker(msg._id)}
-                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
+                className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
               >
                 <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              <button
+                onClick={() => startReply(msg)}
+                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
+              >
+                <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
                 </svg>
               </button>
               {showEmojiPicker === msg._id && (
@@ -275,6 +301,26 @@ export default function ChatView() {
         
         <div ref={messagesEndRef} />
       </div>
+
+      {replyTo && (
+        <div className="bg-surface border-t border-bg px-4 py-2 flex items-center justify-between">
+          <div className="flex-1">
+            <p className="text-xs text-text-muted">Replying to</p>
+            <p className="text-sm text-text truncate">
+              {replyTo.sender?.displayName || replyTo.sender?.username || 'Unknown'}: {replyTo.content?.slice(0, 50)}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={cancelReply}
+            className="p-1 text-text-muted hover:text-text"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       <form onSubmit={handleSend} className="bg-surface p-3 flex items-center gap-2">
         <input
