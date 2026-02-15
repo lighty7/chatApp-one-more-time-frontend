@@ -67,6 +67,8 @@ export const conversationsAPI = {
   join: (id, userId) => api.post(`/conversations/${id}/join`, { userId }),
   leave: (id) => api.post(`/conversations/${id}/leave`),
   markRead: (id, messageIds) => api.post(`/conversations/${id}/read`, { messageIds }),
+  addReaction: (messageId, emoji) => api.post(`/conversations/messages/${messageId}/reactions`, { emoji }),
+  removeReaction: (messageId, emoji) => api.delete(`/conversations/messages/${messageId}/reactions?emoji=${encodeURIComponent(emoji)}`),
 };
 
 export const roomsAPI = {
