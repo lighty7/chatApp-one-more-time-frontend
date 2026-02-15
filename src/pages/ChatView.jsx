@@ -2,8 +2,11 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, useAuthStore } from '../stores';
 import { filesAPI } from '../services/api';
+import ReactionPicker from '../components/ReactionPicker';
+import ReactionBadge from '../components/ReactionBadge';
+import { ALLOWED_REACTIONS } from '../constants/reactions';
 
-const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', '🔥'];
+import { ALLOWED_REACTIONS } from '../constants/reactions';
 
 export default function ChatView() {
   const { id } = useParams();
@@ -292,17 +295,10 @@ export default function ChatView() {
                 </svg>
               </button>
               {showEmojiPicker === msg._id && (
-                <div className={`absolute ${isMe ? 'left-0' : 'right-0'} top-8 bg-surface rounded-lg shadow-lg p-2 flex gap-1 z-10`}>
-                  {EMOJI_LIST.map(emoji => (
-                    <button
-                      key={emoji}
-                      onClick={() => handleReaction(msg._id, emoji)}
-                      className="w-8 h-8 hover:bg-bg rounded flex items-center justify-center text-lg"
-                    >
-                      {emoji}
-                    </button>
-                  ))}
-                </div>
+                <ReactionPicker 
+                  onSelect={(emoji) => handleReaction(msg._id, emoji)} 
+                  position={isMe ? 'left' : 'right'}
+                />
               )}
             </div>
           );
