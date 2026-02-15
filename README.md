@@ -41,6 +41,13 @@ A modern real-time chat application frontend built with React, featuring direct 
 - Toast notifications for new messages
 - Responsive design with Tailwind CSS
 
+### Mobile Support
+- **Touch-optimized UI**: All interactive elements have 44px+ touch targets
+- **Long-press interactions**: Long-press on any message to add reactions
+- **Haptic feedback**: Vibration feedback on supported devices
+- **Responsive layout**: Works seamlessly on mobile and tablet devices
+- **Swipe gestures**: Native touch scrolling throughout the app
+
 ## Tech Stack
 
 - **Framework**: React 19 + Vite
