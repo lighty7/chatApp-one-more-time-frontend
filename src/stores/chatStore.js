@@ -265,6 +265,20 @@ export const useChatStore = create((set, get) => ({
     });
   },
 
+  leaveConversation: async (conversationId) => {
+    try {
+      await conversationsAPI.leave(conversationId);
+      const { conversations } = get();
+      set({
+        conversations: conversations.filter(c => (c._id || c.id) !== conversationId),
+        activeConversation: null
+      });
+    } catch (error) {
+      console.error('Failed to leave conversation:', error);
+      throw error;
+    }
+  },
+
   setUser: (user) => {
     set({ user });
   },
