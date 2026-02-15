@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useChatStore, useAuthStore } from '../stores';
 import { filesAPI } from '../services/api';
 
+const EMOJI_LIST = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🎉', '🔥'];
+
 export default function ChatView() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ export default function ChatView() {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
@@ -103,6 +106,30 @@ export default function ChatView() {
     setUploading(false);
   };
 
+  const handleReaction = async (messageId, emoji) => {
+    const message = currentMessages.find(m => m._id === messageId);
+    if (!message) return;
+    
+    const existingReaction = message.reactions?.find(
+      r => r.user?._id === currentUserId || r.user === currentUserId
+    );
+    
+    try {
+      if (existingReaction?.emoji === emoji) {
+        await useChatStore.getState().removeReaction(messageId, emoji);
+      } else {
+        await useChatStore.getState().addReaction(messageId, emoji);
+      }
+    } catch (error) {
+      console.error('Failed to handle reaction:', error);
+    }
+    setShowEmojiPicker(null);
+  };
+
+  const toggleEmojiPicker = (messageId) => {
+    setShowEmojiPicker(showEmojiPicker === messageId ? null : messageId);
+  };
+
   const getChatName = () => {
     if (!activeConversation) return '';
     if (activeConversation.displayName) return activeConversation.displayName;
@@ -138,7 +165,7 @@ export default function ChatView() {
           return (
             <div
               key={msg._id || msg.id || `msg-${index}`}
-              className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+              className={`flex ${isMe ? 'justify-end' : 'justify-start'} group relative`}
             >
               <div
                 className={`max-w-[75%] px-4 py-2 rounded-2xl ${
@@ -183,7 +210,53 @@ export default function ChatView() {
                     </span>
                   )}
                 </div>
+                {msg.reactions && msg.reactions.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-2">
+                    {Object.entries(
+                      msg.reactions.reduce((acc, r) => {
+                        const emoji = r.emoji;
+                        if (!acc[emoji]) acc[emoji] = [];
+                        acc[emoji].push(r.user?._id || r.user);
+                        return acc;
+                      }, {})
+                    ).map(([emoji, users]) => (
+                      <button
+                        key={emoji}
+                        onClick={() => handleReaction(msg._id, emoji)}
+                        className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                          users.includes(currentUserId)
+                            ? 'bg-primary/30 ring-1 ring-primary'
+                            : 'bg-bg/50'
+                        }`}
+                      >
+                        <span>{emoji}</span>
+                        <span className="text-[10px]">{users.length}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
+              <button
+                onClick={() => toggleEmojiPicker(msg._id)}
+                className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-0 group-hover:opacity-100 transition-opacity`}
+              >
+                <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
+              {showEmojiPicker === msg._id && (
+                <div className={`absolute ${isMe ? 'left-0' : 'right-0'} top-8 bg-surface rounded-lg shadow-lg p-2 flex gap-1 z-10`}>
+                  {EMOJI_LIST.map(emoji => (
+                    <button
+                      key={emoji}
+                      onClick={() => handleReaction(msg._id, emoji)}
+                      className="w-8 h-8 hover:bg-bg rounded flex items-center justify-center text-lg"
+                    >
+                      {emoji}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
