@@ -59,12 +59,24 @@ function MessageItem({
       onMouseLeave={handleMouseUp}
     >
       <div
-        className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+        className={`max-w-[75%] px-4 py-2 rounded-2xl relative ${
           isMe
             ? 'bg-primary text-bg rounded-br-md'
             : 'bg-surface rounded-bl-md'
         }`}
       >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu(showMenu === msg._id ? null : msg._id);
+          }}
+          className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+          aria-label="Message options"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
         {!isMe && !isGroup && (
           <div className="text-xs text-primary font-medium mb-1">
             {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
@@ -145,17 +157,8 @@ function MessageItem({
           </div>
         )}
       </div>
-      <button
-        onClick={() => setShowMenu(showMenu === msg._id ? null : msg._id)}
-        className={`absolute -bottom-2 ${isMe ? 'right-0' : 'left-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
-        aria-label="Message options"
-      >
-        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-        </svg>
-      </button>
       {showMenu === msg._id && (
-        <div className={`absolute -bottom-2 ${isMe ? 'right-8' : 'left-8'} bg-surface rounded-lg shadow-lg py-1 z-10 min-w-[120px]`}>
+        <div className={`absolute top-8 ${isMe ? 'right-0' : 'left-0'} bg-surface rounded-lg shadow-lg py-1 z-10 min-w-[120px]`}>
           <button
             onClick={() => handleMenuAction('reply', msg)}
             className="w-full px-4 py-2 text-left text-sm hover:bg-bg flex items-center gap-2"
