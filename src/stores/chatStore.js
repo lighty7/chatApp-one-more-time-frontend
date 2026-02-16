@@ -223,6 +223,17 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
+  forwardMessage: async (targetConversationId, message) => {
+    try {
+      const { data } = await conversationsAPI.forwardMessage(targetConversationId, message._id);
+      await get().fetchConversations();
+      return data;
+    } catch (error) {
+      console.error('Failed to forward message:', error);
+      throw error;
+    }
+  },
+
   addReaction: async (messageId, emoji) => {
     const { activeConversation } = get();
     if (!activeConversation) return;

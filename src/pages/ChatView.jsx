@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useChatStore, useAuthStore } from '../stores';
+import { useChatStore, useAuthStore, usePresenceStore } from '../stores';
 import { filesAPI } from '../services/api';
 import ReactionPicker from '../components/ReactionPicker';
 import ReactionBadge from '../components/ReactionBadge';
@@ -15,7 +15,8 @@ function MessageItem({
   showEmojiPicker, 
   toggleEmojiPicker, 
   handleReaction, 
-  startReply 
+  startReply,
+  startForward 
 }) {
   const timerRef = useRef(null);
 
@@ -93,7 +94,9 @@ function MessageItem({
           <p className="break-words">{msg.content}</p>
         )}
         <div className={`text-xs mt-1 flex items-center justify-end gap-1 ${isMe ? 'text-bg/70' : 'text-text-muted'}`}>
-          <span>{msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+          <span title={msg.createdAt && new Date(msg.createdAt).toLocaleString()}>
+            {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
           {isMe && (
             <span>
               {isRead ? (
@@ -135,21 +138,30 @@ function MessageItem({
         )}
       </div>
       <button
-        onClick={() => toggleEmojiPicker(msg._id)}
-        className={`absolute -bottom-2 ${isMe ? 'left-8' : 'right-8'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
-        aria-label="Add reaction"
-      >
-        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
-      <button
         onClick={() => startReply(msg)}
         className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
         aria-label="Reply to message"
       >
         <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+        </svg>
+      </button>
+      <button
+        onClick={() => startForward(msg)}
+        className={`absolute -bottom-10 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
+        aria-label="Forward message"
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+      </button>
+      <button
+        onClick={() => toggleEmojiPicker(msg._id)}
+        className={`absolute -bottom-6 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
+        aria-label="Add reaction"
+      >
+        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </button>
       {showEmojiPicker === msg._id && (
@@ -174,14 +186,19 @@ export default function ChatView() {
     markAsRead,
   } = useChatStore();
 
+  const onlineUsers = usePresenceStore((s) => s.onlineUsers);
+
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
+  const [forwardTo, setForwardTo] = useState(null);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
   const typingTimeoutRef = useRef(null);
+
+  const { conversations, forwardMessage } = useChatStore();
 
   const conversationId = id;
   const currentMessages = useMemo(() => messages[conversationId] || [], [messages, conversationId]);
@@ -244,6 +261,24 @@ export default function ChatView() {
 
   const cancelReply = () => {
     setReplyTo(null);
+  };
+
+  const startForward = (message) => {
+    setForwardTo(message);
+  };
+
+  const cancelForward = () => {
+    setForwardTo(null);
+  };
+
+  const handleForward = async (targetConversationId) => {
+    if (!forwardTo || !targetConversationId) return;
+    try {
+      await forwardMessage(targetConversationId, forwardTo);
+      setForwardTo(null);
+    } catch (error) {
+      console.error('Failed to forward message:', error);
+    }
   };
 
   const handleTyping = () => {
@@ -332,6 +367,11 @@ export default function ChatView() {
               {activeConversation.participants.length} members
             </p>
           )}
+          {!isGroup && activeConversation?.otherParticipant && (
+            <p className={`text-xs ${onlineUsers.has(activeConversation.otherParticipant._id || activeConversation.otherParticipant.id) ? 'text-green-500' : 'text-text-muted'}`}>
+              {onlineUsers.has(activeConversation.otherParticipant._id || activeConversation.otherParticipant.id) ? 'Online' : 'Offline'}
+            </p>
+          )}
         </div>
         {(isGroup || activeConversation?.type === 'direct') && (
           <button
@@ -373,6 +413,7 @@ export default function ChatView() {
               toggleEmojiPicker={toggleEmojiPicker}
               handleReaction={handleReaction}
               startReply={startReply}
+              startForward={startForward}
             />
           );
         })}
@@ -409,6 +450,36 @@ export default function ChatView() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
           </button>
+        </div>
+      )}
+
+      {forwardTo && (
+        <div className="bg-surface border-t border-bg px-4 py-2">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-text-muted">Forward to:</p>
+            <button type="button" onClick={cancelForward} className="p-1 text-text-muted hover:text-text">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="max-h-40 overflow-y-auto space-y-1">
+            {conversations
+              .filter(c => (c._id || c.id) !== conversationId)
+              .map(conv => (
+                <button
+                  key={conv._id || conv.id}
+                  type="button"
+                  onClick={() => handleForward(conv._id || conv.id)}
+                  className="w-full p-2 text-left bg-bg rounded-lg hover:bg-primary/10 flex items-center gap-2"
+                >
+                  <div className="w-8 h-8 rounded-full bg-surface flex items-center justify-center text-primary text-sm font-bold">
+                    {conv.displayName?.[0] || conv.name?.[0] || '?'}
+                  </div>
+                  <span className="text-sm">{conv.displayName || conv.name || 'Unknown'}</span>
+                </button>
+              ))}
+          </div>
         </div>
       )}
 

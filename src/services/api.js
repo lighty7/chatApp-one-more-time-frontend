@@ -73,6 +73,7 @@ export const conversationsAPI = {
   addParticipant: (id, userId) => api.post(`/conversations/${id}/participants`, { userId }),
   removeParticipant: (id, userId) => api.delete(`/conversations/${id}/participants/${userId}`),
   updateParticipantRole: (id, userId, role) => api.put(`/conversations/${id}/participants/${userId}/role`, { role }),
+  forwardMessage: (targetConversationId, messageId) => api.post(`/conversations/${targetConversationId}/forward`, { messageId }),
 };
 
 export const roomsAPI = {
