@@ -27,6 +27,7 @@ A modern real-time chat application frontend built with React, featuring direct 
 - Real-time room messaging
 - View room message history
 
+
 ### AI Assistant
 - Integrated AI chatbot powered by Ollama
 - Support for multiple AI models
