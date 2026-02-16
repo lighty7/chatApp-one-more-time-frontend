@@ -12,11 +12,11 @@ function MessageItem({
   isRead, 
   currentUserId, 
   isGroup, 
-  showEmojiPicker, 
-  toggleEmojiPicker, 
-  handleReaction, 
-  startReply,
-  startForward 
+  showEmojiPicker,
+  handleReaction,
+  showMenu,
+  setShowMenu,
+  handleMenuAction
 }) {
   const timerRef = useRef(null);
 
@@ -24,8 +24,8 @@ function MessageItem({
     if (HAPTIC_FEEDBACK_ENABLED && navigator.vibrate) {
       navigator.vibrate(50);
     }
-    toggleEmojiPicker(msg._id);
-  }, [msg._id, toggleEmojiPicker]);
+    setShowMenu(showMenu === msg._id ? null : msg._id);
+  }, [msg._id, showMenu, setShowMenu]);
 
   const handleTouchStart = useCallback(() => {
     timerRef.current = setTimeout(handleLongPress, LONG_PRESS_DURATION);
@@ -59,12 +59,24 @@ function MessageItem({
       onMouseLeave={handleMouseUp}
     >
       <div
-        className={`max-w-[75%] px-4 py-2 rounded-2xl ${
+        className={`max-w-[75%] px-4 py-2 rounded-2xl relative ${
           isMe
             ? 'bg-primary text-bg rounded-br-md'
             : 'bg-surface rounded-bl-md'
         }`}
       >
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setShowMenu(showMenu === msg._id ? null : msg._id);
+          }}
+          className="absolute top-1 right-1 p-1 rounded-full opacity-0 group-hover:opacity-60 hover:opacity-100 transition-opacity"
+          aria-label="Message options"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
         {!isMe && !isGroup && (
           <div className="text-xs text-primary font-medium mb-1">
             {msg.sender ? (msg.sender.displayName || msg.sender.username) : 'Deleted User'}
@@ -97,7 +109,7 @@ function MessageItem({
           <span title={msg.createdAt && new Date(msg.createdAt).toLocaleString()}>
             {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-          {isMe && (
+          {isMe && !isGroup && (
             <span>
               {isRead ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,6 +121,14 @@ function MessageItem({
                 </svg>
               )}
             </span>
+          )}
+          {isGroup && msg.readBy && msg.readBy.length > 0 && (
+            <div className="flex items-center gap-1" title={`Read by ${msg.readBy.length} member(s)`}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-[10px]">{msg.readBy.length}</span>
+            </div>
           )}
         </div>
         {msg.reactions && msg.reactions.length > 0 && (
@@ -137,37 +157,44 @@ function MessageItem({
           </div>
         )}
       </div>
-      <button
-        onClick={() => startReply(msg)}
-        className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
-        aria-label="Reply to message"
-      >
-        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
-        </svg>
-      </button>
-      <button
-        onClick={() => startForward(msg)}
-        className={`absolute -bottom-10 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
-        aria-label="Forward message"
-      >
-        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      </button>
-      <button
-        onClick={() => toggleEmojiPicker(msg._id)}
-        className={`absolute -bottom-6 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
-        aria-label="Add reaction"
-      >
-        <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-      </button>
+      {showMenu === msg._id && (
+        <div className={`absolute top-8 ${isMe ? 'right-0' : 'left-0'} bg-surface rounded-lg shadow-lg py-1 z-10 min-w-[120px]`}>
+          <button
+            onClick={() => handleMenuAction('reply', msg)}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-bg flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+            </svg>
+            Reply
+          </button>
+          <button
+            onClick={() => handleMenuAction('forward', msg)}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-bg flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+            Forward
+          </button>
+          <button
+            onClick={() => handleMenuAction('react', msg)}
+            className="w-full px-4 py-2 text-left text-sm hover:bg-bg flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            React
+          </button>
+        </div>
+      )}
       {showEmojiPicker === msg._id && (
         <ReactionPicker 
-          onSelect={(emoji) => handleReaction(msg._id, emoji)} 
-          position={isMe ? 'left' : 'right'}
+          onSelect={(emoji) => {
+            handleReaction(msg._id, emoji);
+            setShowMenu(null);
+          }} 
+          position={isMe ? 'right' : 'left'}
         />
       )}
     </div>
@@ -192,6 +219,7 @@ export default function ChatView() {
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
+  const [showMenu, setShowMenu] = useState(null);
   const [replyTo, setReplyTo] = useState(null);
   const [forwardTo, setForwardTo] = useState(null);
   const messagesEndRef = useRef(null);
@@ -255,16 +283,8 @@ export default function ChatView() {
     setSending(false);
   };
 
-  const startReply = (message) => {
-    setReplyTo(message);
-  };
-
   const cancelReply = () => {
     setReplyTo(null);
-  };
-
-  const startForward = (message) => {
-    setForwardTo(message);
   };
 
   const cancelForward = () => {
@@ -278,6 +298,17 @@ export default function ChatView() {
       setForwardTo(null);
     } catch (error) {
       console.error('Failed to forward message:', error);
+    }
+  };
+
+  const handleMenuAction = (action, message) => {
+    setShowMenu(null);
+    if (action === 'reply') {
+      setReplyTo(message);
+    } else if (action === 'forward') {
+      setForwardTo(message);
+    } else if (action === 'react') {
+      setShowEmojiPicker(message._id);
     }
   };
 
@@ -326,10 +357,6 @@ export default function ChatView() {
       console.error('Failed to handle reaction:', error);
     }
     setShowEmojiPicker(null);
-  };
-
-  const toggleEmojiPicker = (messageId) => {
-    setShowEmojiPicker(showEmojiPicker === messageId ? null : messageId);
   };
 
   const getChatName = () => {
@@ -410,10 +437,10 @@ export default function ChatView() {
               currentUserId={currentUserId}
               isGroup={isGroup}
               showEmojiPicker={showEmojiPicker}
-              toggleEmojiPicker={toggleEmojiPicker}
               handleReaction={handleReaction}
-              startReply={startReply}
-              startForward={startForward}
+              showMenu={showMenu}
+              setShowMenu={setShowMenu}
+              handleMenuAction={handleMenuAction}
             />
           );
         })}
