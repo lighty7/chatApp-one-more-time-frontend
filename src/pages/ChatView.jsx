@@ -97,7 +97,7 @@ function MessageItem({
           <span title={msg.createdAt && new Date(msg.createdAt).toLocaleString()}>
             {msg.createdAt && new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
-          {isMe && (
+          {isMe && !isGroup && (
             <span>
               {isRead ? (
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -109,6 +109,14 @@ function MessageItem({
                 </svg>
               )}
             </span>
+          )}
+          {isGroup && msg.readBy && msg.readBy.length > 0 && (
+            <div className="flex items-center gap-1" title={`Read by ${msg.readBy.length} member(s)`}>
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              <span className="text-[10px]">{msg.readBy.length}</span>
+            </div>
           )}
         </div>
         {msg.reactions && msg.reactions.length > 0 && (
@@ -139,7 +147,7 @@ function MessageItem({
       </div>
       <button
         onClick={() => startReply(msg)}
-        className={`absolute -bottom-2 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
+        className={`absolute -bottom-2 ${isMe ? 'right-0' : 'left-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
         aria-label="Reply to message"
       >
         <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,7 +156,7 @@ function MessageItem({
       </button>
       <button
         onClick={() => startForward(msg)}
-        className={`absolute -bottom-10 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
+        className={`absolute -bottom-10 ${isMe ? 'right-0' : 'left-0'} p-1 bg-surface rounded-full shadow opacity-60 transition-opacity active:scale-110 touch-manipulation`}
         aria-label="Forward message"
       >
         <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -157,7 +165,7 @@ function MessageItem({
       </button>
       <button
         onClick={() => toggleEmojiPicker(msg._id)}
-        className={`absolute -bottom-6 ${isMe ? 'left-0' : 'right-0'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
+        className={`absolute -bottom-6 ${isMe ? 'right-0' : 'left-0'} p-1 bg-surface rounded-full shadow ${showEmojiPicker === msg._id ? 'opacity-100' : 'opacity-60'} transition-opacity active:scale-110 touch-manipulation`}
         aria-label="Add reaction"
       >
         <svg className="w-4 h-4 text-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,7 +175,7 @@ function MessageItem({
       {showEmojiPicker === msg._id && (
         <ReactionPicker 
           onSelect={(emoji) => handleReaction(msg._id, emoji)} 
-          position={isMe ? 'left' : 'right'}
+          position={isMe ? 'right' : 'left'}
         />
       )}
     </div>
