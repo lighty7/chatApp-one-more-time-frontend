@@ -366,5 +366,39 @@ export const useChatStore = create((set, get) => ({
         get().updateMessageReactions(convId, messageId, message.reactions);
       }
     });
+
+    socketService.on('participant-added', ({ conversationId, userId, conversation }) => {
+      console.log('Participant added:', conversationId, userId);
+      const { activeConversation } = get();
+      if (activeConversation && (activeConversation._id || activeConversation.id) === conversationId) {
+        get().setActiveConversation(conversation);
+      }
+      get().fetchConversations();
+    });
+
+    socketService.on('participant-removed', ({ conversationId, userId }) => {
+      console.log('Participant removed:', conversationId, userId);
+      const { activeConversation, user } = get();
+      if (activeConversation && (activeConversation._id || activeConversation.id) === conversationId) {
+        const currentUserId = user?._id || user?.id;
+        if (userId === currentUserId) {
+          get().setActiveConversation(null);
+          get().fetchConversations();
+        } else {
+          const updatedParticipants = (activeConversation.participants || []).filter(
+            p => (p.user?._id || p.user)?.toString() !== userId
+          );
+          get().setActiveConversation({ ...activeConversation, participants: updatedParticipants });
+        }
+      }
+    });
+
+    socketService.on('participant-role-updated', ({ conversationId, userId, role, conversation }) => {
+      console.log('Participant role updated:', conversationId, userId, role);
+      const { activeConversation } = get();
+      if (activeConversation && (activeConversation._id || activeConversation.id) === conversationId) {
+        get().setActiveConversation(conversation);
+      }
+    });
   },
 }));

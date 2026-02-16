@@ -19,13 +19,16 @@ A modern real-time chat application frontend built with React, featuring direct 
 
 ### Group Chats
 - Create group conversations with multiple participants
-- Add/remove members
-- Group name and avatar support
+- **Group management**: View and edit group details (name, description, avatar)
+- **Member management**: Add/remove members, promote to admin
+- **Role-based access**: Admin, moderator, and member roles
+- Real-time participant updates via WebSocket
 
 ### Rooms (Public Channels)
 - Join public chat rooms by name
 - Real-time room messaging
 - View room message history
+
 
 ### AI Assistant
 - Integrated AI chatbot powered by Ollama
@@ -378,7 +381,15 @@ chat-frontend/
 - `GET /api/conversations` - List conversations
 - `POST /api/conversations/direct` - Create direct conversation
 - `POST /api/conversations/group` - Create group
+- `GET /api/conversations/:id` - Get conversation by ID
 - `GET /api/conversations/:id/messages` - Get messages
+- `PUT /api/conversations/:id` - Update group (admin only)
+- `POST /api/conversations/:id/participants` - Add participant (admin only)
+- `DELETE /api/conversations/:id/participants/:userId` - Remove participant
+- `PUT /api/conversations/:id/participants/:userId/role` - Update participant role (admin only)
+- `POST /api/conversations/:id/join` - Join conversation
+- `POST /api/conversations/:id/leave` - Leave conversation
+- `POST /api/conversations/:id/read` - Mark messages as read
 
 ### Rooms
 - `GET /api/rooms` - List rooms
@@ -407,6 +418,9 @@ chat-frontend/
 - `send-room-message` - Send room message
 - `ai-message` - Send AI message
 - `ai-stop` - Stop AI response
+- `add-participant` - Add participant to group (admin)
+- `remove-participant` - Remove participant from group
+- `update-participant-role` - Update participant role (admin)
 
 ### Listen Events
 - `new-message` - New message received
@@ -421,6 +435,9 @@ chat-frontend/
 - `ai-error` - AI error
 - `ai-stopped` - AI response stopped
 - `notification` - Notification
+- `participant-added` - Participant added to group
+- `participant-removed` - Participant removed from group
+- `participant-role-updated` - Participant role updated
 
 ## State Management
 

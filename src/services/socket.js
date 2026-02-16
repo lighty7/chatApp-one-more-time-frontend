@@ -169,6 +169,33 @@ class SocketService {
     });
   }
 
+  addParticipant(conversationId, userId) {
+    return new Promise((resolve, reject) => {
+      this.emit('add-participant', { conversationId, userId }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
+  removeParticipant(conversationId, userId) {
+    return new Promise((resolve, reject) => {
+      this.emit('remove-participant', { conversationId, userId }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
+  updateParticipantRole(conversationId, userId, role) {
+    return new Promise((resolve, reject) => {
+      this.emit('update-participant-role', { conversationId, userId, role }, (response) => {
+        if (response?.error) reject(response.error);
+        else resolve(response);
+      });
+    });
+  }
+
   joinRoom(roomName) {
     return new Promise((resolve, reject) => {
       this.emit('join-room', { roomName }, (response) => {
