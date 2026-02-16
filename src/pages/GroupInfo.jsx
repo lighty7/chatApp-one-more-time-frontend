@@ -15,7 +15,6 @@ export default function GroupInfo() {
   const [description, setDescription] = useState('');
   const [search, setSearch] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const [uploading, setUploading] = useState(false);
 
   const currentUserId = user?._id || user?.id;
@@ -47,7 +46,6 @@ export default function GroupInfo() {
         setSearchResults([]);
         return;
       }
-      setSearching(true);
       try {
         const { data } = await usersAPI.search(search);
         const users = data.users || data;
@@ -60,7 +58,6 @@ export default function GroupInfo() {
       } catch (error) {
         console.error('Search failed:', error);
       }
-      setSearching(false);
     };
     const debounce = setTimeout(searchUsers, 300);
     return () => clearTimeout(debounce);
